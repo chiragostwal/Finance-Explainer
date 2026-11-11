@@ -1,0 +1,34 @@
+databases:
+  - name: nse_universe
+    path: "NSE-universe-raw.duckdb"
+    description: "NSE universe of equities with market cap and fundamental data"
+    sync_week: "2026-W45"
+    max_retries: 3
+    sleep_interval: 0.35
+    nse_url: "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
+    nse_series: "EQ"
+    top_n: 750
+
+  - name: mutual_funds
+    path: "mutual-funds-raw.duckdb"
+    description: "Mutual fund data (to be populated)"
+    sync_week: "2026-W45"
+    max_retries: 3
+    sleep_interval: 0.35
+    nse_url: "https://archives.nseindia.com/content/mf/..."
+    nse_series: "MF"
+    top_n: 500
+
+  - name: ipo_data
+    path: "ipo-raw.duckdb"
+    description: "IPO data (to be populated)"
+    sync_week: "2026-W45"
+    max_retries: 3
+    sleep_interval: 0.35
+    nse_url: "https://archives.nseindia.com/content/ipo/..."
+    nse_series: "IPO"
+    top_n: 100
+
+logging:
+  level: INFO
+  format: "%(asctime)s - %(levelname)s - %(message)s"
