@@ -1,0 +1,149 @@
+sector_archetypes:
+  BFSI_BANK_NBFC:
+    nse_keywords: ["bank", "nbfc", "housing finance", "microfinance", "fintech", "lending"]
+    regex: '\b(nim|net interest|gnpa|nnpa|npa|credit cost|slippage|provision|pcr|casa|deposit|advances|aum|disbursement|cost of funds|yield on advances|crar|roaa)\b'
+    rules: |
+      - Sector is BANKING / NBFC.
+      - Select `fact_id` entries from `[TYPED FACT CATALOG]` for Consolidated profitability (NII, Core Operating Profit, PAT) and major Loan Book / Deposit segments.
+      - Never call Loans, Advances, AUM, Deposits, or PAT "Revenue".
+      - GUIDANCE: Capture forward targets (ROA, ROE, NIM trajectory, Credit Growth, or Credit Cost) stated in [CONCALL] under `management_numerical_guidance`.
+
+  INSURANCE:
+    nse_keywords: ["insurance", "life insurance", "general insurance"]
+    regex: '\b(vnb|value of new business|ape|annualized premium|persistency|solvency ratio|embedded value|iev|par|non-par|ulip|annuity|claim ratio|combined ratio|gwp|nwp)\b'
+    rules: |
+      - Sector is INSURANCE. Select `fact_id` entries from `[TYPED FACT CATALOG]` and keep exact insurance metric names (APE, VNB, VNB Margin, GWP, Persistency, AUM).
+
+  IT_SAAS:
+    nse_keywords: ["software", "it enabled", "bpo", "kpo", "it services", "computers"]
+    regex: '\b(tcv|acv|deal wins|large deals|pipeline|attrition|headcount|fresher|bench|subcontracting|wage hike|onsite|offshore|constant currency|cc growth|billing rate|genai|agentic)\b'
+    rules: |
+      - Sector is IT SERVICES / SOFTWARE.
+      - Preserve exact currencies and units (`US$ Bn`, `US$ Mn`, `₹ Cr`) from `[TYPED FACT CATALOG]`.
+
+  TELECOM_DIGITAL:
+    nse_keywords: ["telecom", "telecommunication", "wireless", "broadband", "digital", "media"]
+    regex: '\b(arpu|subscriber|net adds|churn|5g|fwa|home pass|data traffic|indus towers|spectrum|agr|ebitdaal|capex intensity)\b'
+    rules: |
+      - Sector is TELECOM / DIGITAL PLATFORMS.
+      - Keep Consolidated totals in "Consolidated" and bind sub-segments strictly via `fact_id` from `[TYPED FACT CATALOG]`.
+
+  PHARMA_HEALTHCARE:
+    nse_keywords: ["pharma", "pharmaceuticals", "healthcare", "hospital", "biotech", "diagnostics", "api"]
+    regex: '\b(anda|usfda|483|warning letter|dmf|api|formulation|chronic|acute|cdmo|cro|biosimilar|peptide|glp-1|nlem|mr productivity|arpob|alos|bed occupancy|brownfield bed|payor mix)\b'
+    rules: |
+      - Sector is PHARMA / CDMO / HEALTHCARE.
+      - Preserve exact USD (`$ Mn`) vs INR (`₹ Cr` / `₹ Mn`) units from `[TYPED FACT CATALOG]`.
+
+  FMCG_RETAIL_NEWAGE:
+    nse_keywords: ["fmcg", "retailing", "consumer", "food", "personal products", "e-retail", "qsr", "apparel", "jewellery"]
+    regex: '\b(sssg|same store|like-for-like|lfl|volume growth|uvg|rural|urban|grammage|sku|store addition|footfall|sq\.?\s*ft|gov|gmv|take rate|aov|dark store|blinkit|instamart|mtu|mau)\b'
+    rules: |
+      - Sector is FMCG / RETAIL / E-COMMERCE.
+      - Never label retail store area (mn sq ft) or store count as "Revenue". Bind segment facts via `fact_id` from `[TYPED FACT CATALOG]`.
+
+  AUTO_ANCILLARY:
+    nse_keywords: ["automobile", "auto components", "tyres", "2/3 wheelers", "passenger cars", "commercial vehicles", "tractors"]
+    regex: '\b(wholesales|retails|asp|suv mix|ev penetration|cafe norms|fame|pm e-drive|dealer inventory|content per vehicle|powertrain|2w|3w|pv|cv|mhcv|tractor|homologation)\b'
+    rules: |
+      - Sector is AUTOMOTIVE / EV / ANCILLARIES.
+      - Keep Consolidated totals in "Consolidated" and never list the company's own brands or subsidiaries as competitors.
+
+  CAPGOODS_DEFENSE_INFRA:
+    nse_keywords: ["capital goods", "defence", "aerospace", "construction", "engineering", "electrical", "ems", "cables", "industrial"]
+    regex: '\b(order inflow|order book|order backlog|book-to-bill|l1 bidder|working capital days|retention money|indigenization|make in india|ems|backward integration|epc|ham|bot|toll)\b'
+    rules: |
+      - Sector is CAPITAL GOODS / DEFENSE / INFRA / EMS.
+      - Bind Revenue, Operating Profit, EBITDA, PAT, and Order Book strictly via `fact_id` from `[TYPED FACT CATALOG]`.
+
+  REALESTATE_CEMENT_BLDG:
+    nse_keywords: ["realty", "real estate", "cement", "paints", "ceramics", "sanitaryware", "building products"]
+    regex: '\b(pre-sales|presales|collections|launch pipeline|gdv|unsold inventory|carpet area|rera|ebitda per ton|ebitda/t|clinker|blended cement|whrs|lead distance|petcoke|tio2)\b'
+    rules: |
+      - Sector is REAL ESTATE / CEMENT / BUILDING MATERIALS.
+      - Distinguish Operating EBITDA from Revenue via `[TYPED FACT CATALOG]`.
+
+  COMMODITIES_ENERGY_POWER:
+    nse_keywords: ["oil", "gas", "petroleum", "refineries", "power", "metals", "mining", "steel", "coal", "chemicals", "fertilizers"]
+    regex: '\b(grm|refining margin|fuel cracks|ethane|kg d6|cbm|coking coal|hot rolled|hrc|pellet|spread per ton|plf|plant load factor|ppa|merchant power|tariff|bess|solar module|gw)\b'
+    rules: |
+      - Sector is ENERGY / OIL & GAS / METALS / POWER / CHEMICALS.
+      - Preserve physical units (MMT, TMT, GW, billion units) and foreign currency units (€ Mn, $ Mn) exactly as shown in `[TYPED FACT CATALOG]`.
+
+  GENERAL_CORPORATE:
+    nse_keywords: []
+    regex: ''
+    rules: |
+      - Bind segment facts to `[TYPED FACT CATALOG]` using `fact_id`.
+
+prompts:
+  extractor_prompt: |
+    Extract strictly objective corporate facts for {company_name} (NSE: {symbol}) using the deterministic `[TYPED FACT CATALOG]` and source blocks below.
+
+    [TYPED FACT CATALOG (PRE-VERIFIED NUMBERS, UNITS & METRIC LABELS)]:
+    {typed_fact_catalog}
+
+    OFFICIAL NSE INDUSTRY: {nse_industry_str}
+    DETECTED SECTOR ARCHETYPE: {detected_sectors}
+    SECTOR-SPECIFIC RULES:
+    {sector_specific_block}
+
+    MANDATORY EXTRACT-THEN-BIND RULES:
+    1. BIND SEGMENTS TO FACT IDs:
+       - For every entry in `segment_facts`, choose a `fact_id` (such as `"F001"`, `"F015"`, `"F032"`) from `[TYPED FACT CATALOG]` above.
+       - Select 1-2 Consolidated headline profit/income facts AND 2-3 major business/loan/product segment facts from `[TYPED FACT CATALOG]`.
+       - Copy the exact `metric`, `value`, and `change` from that `fact_id` into `financial_performance`, and write a concise `reported_driver` explaining what drove it from `[PRESENTATION]` or `[CONCALL]`.
+    2. STRICT TIMELINE & DATE COPYING:
+       - If an event in `key_catalysts_and_events` comes from `[NEWS]`, copy its exact `[YYYY-MM-DD]` date prefix verbatim as `timeline`.
+       - If an event comes from `[PRESENTATION]` or `[CONCALL]`, use the exact period label from `[TYPED FACT CATALOG]`.
+    3. STRICT FIELD ISOLATION:
+       - `raw_materials_and_macro_sensitivities`: Up to 4 external macro, commodity, currency, interest-rate/NIM, or regulatory risk factors discussed in `[PRESENTATION]` or `[CONCALL]`.
+       - `explicitly_named_competitors`: Proper-noun rival companies named in `[PRESENTATION]` or `[CONCALL]` ONLY (never from `[NEWS]`, and never list the company's own brands/subsidiaries).
+       - `management_numerical_guidance`: Forward-looking numerical targets or margin/ROA/ROE/growth trajectory stated in `[PRESENTATION]` or `[CONCALL]` (if none are stated, write `"Not explicitly stated in filing."`).
+
+    Return ONLY a valid JSON object matching this exact structure:
+    {{
+      "core_business_model": "string",
+      "segment_facts": [{{"fact_id": "F001", "segment_name": "string", "financial_performance": "string", "reported_driver": "string"}}],
+      "key_catalysts_and_events": [{{"event_type": "CAPEX|PARTNERSHIP_JV|POLICY_REGULATION|PRICING_ACTION|ORDER_BOOK|OPERATIONAL_MILESTONE|RISK_FACTOR", "description": "string", "timeline": "string"}}],
+      "raw_materials_and_macro_sensitivities": ["string"],
+      "explicitly_named_competitors": ["string"],
+      "management_numerical_guidance": "string",
+      "factual_news_digest": ["string"]
+    }}
+
+    [XBRL SUMMARY]: {xbrl_json}
+    [NEWS]: {news}
+    [PRESENTATION]: {pres}
+    [CONCALL]: {trans}
+
+  judge_prompt: |
+    You are a Senior Financial Audit Judge evaluating an extracted JSON for {company_name} ({symbol}) against the `[TYPED FACT CATALOG]` and 4 source blocks.
+
+    [TYPED FACT CATALOG (GROUND-TRUTH DETERMINISTIC TABLE & CONCALL FACTS)]:
+    {typed_fact_catalog}
+
+    CRITICAL JUDGE RULES:
+    1. VERIFY AGAINST `[TYPED FACT CATALOG]`: Any `segment_facts` entry whose metric, value, unit, and period match a row in `[TYPED FACT CATALOG]` is 100% faithful and MUST NOT be flagged as an error.
+    2. NEWS DIGEST IS DETERMINISTIC: `factual_news_digest` is copied verbatim by Python from `[NEWS]`. NEVER deduct points for `factual_news_digest`.
+    3. DO NOT PENALIZE EMPTY ARRAYS `[]`: Having `[]` for `explicitly_named_competitors` or `raw_materials_and_macro_sensitivities` is valid.
+    4. DEDUCT POINTS ONLY FOR GENUINE ERRORS:
+       - Numbers or claims in `[EXTRACTED JSON]` that contradict `[TYPED FACT CATALOG]` and do not exist in `[PRESENTATION]`, `[CONCALL]`, or `[NEWS]`.
+       - A timeline date that contradicts the source event date.
+
+    Scoring Scale:
+    5 = All segments and numbers align with `[TYPED FACT CATALOG]` or the 4 source blocks.
+    4 = 1 minor driver/timeline imprecision, all numbers and units accurate.
+    3 = 1-2 material numerical or attribution errors.
+    2 = Multiple material errors.
+    1 = Severe fabrication.
+
+    Return ONLY valid JSON: {{"faithfulness_score_1_to_5": int, "errors_found": ["string"]}}
+
+    [XBRL SUMMARY]: {xbrl_slice}
+    [NEWS]: {news_slice}
+    [PRESENTATION]: {pres_slice}
+    [CONCALL]: {trans_slice}
+
+    [EXTRACTED JSON]:
+    {extracted_json}

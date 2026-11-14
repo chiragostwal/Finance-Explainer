@@ -1,0 +1,118 @@
+=== XBRL ===
+{}
+
+=== PRES ===
+[Slide 5]
+Key highlights for Q2-2027 (1/2)
+• | Profit before tax excluding treasury grew by 23.4% y-o-y and 5.2% q-o-q to | ₹ 199.54 bn in Q2-2027 | • | Core operating profit grew by 21.8% y-o-y and 2.8% q-o-q to ₹ 208.05 bn
+Earnings
+• | Core operating profit excluding dividend from subsidiaries grew by 25.0% | y-o-y and 6.4% q-o-q to ₹ 203.42 bn | • | Profit after tax grew by 20.1% y-o-y to ₹ 148.43 bn in Q2-2027
+Asset | quality
+• | Net NPA ratio was 0.30% at Sep 30, 2026 (Jun 30, 2026: 0.35%) | • | Net additions of ₹ 12.13 bn to gross NPAs in Q2-2027 (Q2-2026: ₹ 13.86 bn) | • | Provision coverage ratio was 75.0% at Sep 30, 2026 (Jun 30, 2026: 74.7%) | • | Standard, contingency and other provisions of ₹ 238.15 bn (1.3% of advances)
+• | Contingency provisions of ₹ 131.00 bn at Sep 30, 2026 | • | Excludes additional standard asset provision of ₹ 12.83 billion in respect of | agricultural priority sector portfolio
+• | Common Equity Tier 1 ratio of 16.01%1 (Jun 30, 2026: 16.19%1) | • | Total capital adequacy ratio of 16.68%1 | Capital
+1. Including profits for the period
+4
+
+[Slide 13]
+Outstanding deposits
+(₹ billion) | Sep 30,
+2025 | Jun 30,
+2026 | Y-o-Y | growth
+Q-o-Q | growth
+% share at | Sep 30, 2026
+CASA | 6,588.71 | 7,242.56 | 7,408.51 | 12.4% | 2.3% | 36.1%
+- Current | 2,067.47 | 2,478.86 | 2,652.47 | 28.3% | 7.0% | 12.9%
+- Savings | 4,521.24 | 4,763.70 | 4,756.04 | 5.2% | (0.2%) | 23.2%
+Term | 9,539.54 | 11,093.30 13,090.23 | 37.2% | 18.0% | 63.9%
+Total deposits | 16,128.25 | 18,335.86 | 20,498.74 | 27.1% | 11.8% | 100.0%
+• | Excluding FCNR (B) deposits, period end total deposits grew by 17.0% y-o-y and 3.1% q-o-q | at Sep 30, 2026
+Balance sheet-liabilities: slide 48-49
+Consolidated balance sheet: slide 50 | Extensive franchise: slide 51
+12
+
+[Slide 14]
+Average deposits
+(₹ billion) | Q2-2026 | Q1-2027 | Q2-2027 | Y-o-Y | growth
+Q-o-Q | growth
+CASA | 6,101.04 | 6,657.75 | 6,752.48 | 10.7% | 1.4%
+Term | 9,473.45 | 10,822.53 | 12,129.71 | 28.0% | 12.1%
+Total deposits | 15,574.49 | 17,480.28 | 18,882.19 | 21.2% | 8.0%
+Average CASA ratio | 39.2% | 38.1% | 35.8%
+13
+
+[Slide 15]
+Loan portfolio
+(₹ billion) | Sep 30,
+2025 | Jun 30,
+2026 | Y-o-Y | growth
+Q-o-Q | growth
+% share at | Sep 30, 20261
+Retail and rural banking | 8,240.22 | 9,165.12 | 9,456.87 | 14.8% | 3.2% | 51.6%
+Business banking | 2,909.21 | 3,501.55 | 3,891.68 | 33.8% | 11.1% | 21.2%
+Domestic corporate | 2,715.68 | 3,213.16 | 3,547.71 | 30.6% | 10.4% | 19.4%
+Total domestic book | (gross of BRDS/IBPC) | 13,865.10 | 15,879.84 | 16,896.26 | 21.9% | 6.4% | 92.2%
+BRDS/IBPC | (112.50) | (69.99) | (10.00) | (91.1%) | (85.7%) | -
+Total domestic book (net | of BRDS/IBPC) | 13,752.60 | 15,809.85 | 16,886.26 | 22.8% | 6.8% | 92.2%
+Overseas book | 331.96 | 502.75 | 1,429.54 | - | - | 7.8%
+Total advances | 14,084.56 | 16,312.60 | 18,315.80 | 30.0% | 12.3% | 100.0%
+• Excluding loans provided by international branches of the Bank against FCNR (B) deposits, total loans grew by 24.1% y-o-y and 7.3% q-o-q | • Including non-fund based outstanding, the share of retail and rural portfolio was 43.0% of the total portfolio at Sep 30, 2026 | • Of the total domestic loan book, about 57% has interest rate linked to repo rate and other external benchmarks, 29% has fixed interest rate | and 14% has interest rate linked to MCLR and other older benchmarks
+Balance sheet-assets: slides 52-53
+Portfolio composition: slide 54
+1. | Proportions are gross of BRDS/IBPC
+14
+Trend of loan portfolio: slide 64
+
+[Slide 16]
+Retail and rural portfolio
+% share at
+(₹ billion) | Sep 30,
+Sep 30,
+2025 | Jun 30,
+2026 | Y-o-Y | growth
+Q-o-Q | growth
+2026 | Mortgages | 4,606.14 | 5,133.47 | 5,310.88 | 15.3% | 3.5% | 56.2% | Vehicle loans | 962.66 | 1,022.74 | 1,037.39 | 7.8% | 1.4% | 11.0% | - Auto finance | 615.55 | 637.69 | 645.07 | 4.8% | 1.2% | 6.8% | - Commercial vehicle and | equipment | 341.96 | 383.57 | 391.43 | 14.5% | 2.0% | 4.1%
+Personal loans | 1,216.55 | 1,355.20 | 1,419.05 | 16.6% | 4.7% | 15.0% | Credit cards | 588.00 | 532.06 | 530.91 | (9.7)% | (0.2)% | 5.6% | Jewel loans | 311.03 | 534.01 | 557.94 | 79.4% | 4.5% | 5.9% | Farmer finance | 311.88 | 317.99 | 323.33 | 3.7% | 1.7% | 3.4% | Others | 243.95 | 269.65 | 277.37 | 13.7% | 2.9% | 2.9% | Total Retail and Rural | 8,240.22 | 9,165.12 | 9,456.87 | 14.8% | 3.2% | 100.0%
+Trend of retail and rural portfolio: slide 65
+15
+
+[Slide 36]
+Standalone capital adequacy
+Sep 30, 20251,2 | Jun 30, 20261,2 | Sep 30, 20261,2
+(₹ billion) | % | (₹ billion) | % | (₹ billion) | %
+Total capital | 2,903.86 17.00% | 3,281.48 | 16.84% | 3,398.72 | 16.68%
+- Tier I | 2,792.69 16.35% | 3,154.12 | 16.19% | 3,262.33 | 16.01%
+- of which: CET1 | 2,792.69 16.35% | 3,154.12 | 16.19% | 3,262.33 | 16.01%
+- Tier II | 111.17 | 0.65% | 127.36 | 0.65% | 136.39 | 0.67%
+Risk weighted assets | 17,084.47 | 19,487.59 | 20,375.68
+- On balance sheet | 15,194.33 | 17,297.93 | 17,987.17
+- Off balance sheet | 1,890.14 | 2,189.66 | 2,388.51
+Consolidated capital adequacy: slide 57
+35
+1. | 
+
+=== TRANS ===
+1. Net interest income grew by 17.7% year-on-year to ₹25,339 crore in Q2-2027 2. Net interest margin was 4.18% in Q2-2027 compared to 4.36% in Q1-2027. Excluding the benefit of interest on tax refund, the net interest margin would have been 4.28% in Q1-2027 3. Fee income grew by 20.1% year-on-year to ₹7,795 crore in Q2-2027 4. Operating expenses grew by 8.5% year-on-year to ₹12,811 crore in Q2-2027 5. Core operating profit grew by 21.8% year-on-year to ₹20,805 crore in Q2-2027 6. Core operating profit excluding dividend from subsidiaries grew by 25% year-on- year to ₹20,342 crore in Q2-2027 7. Provisions (excluding provision for tax) were ₹851 crore in Q2-2027 8. Profit before tax excluding treasury grew by 23.4% year-on-year to ₹19,954 crore in Q2-2027 9. Profit after tax grew by 20.1% year-on-year to ₹14,843 crore in Q2-2027 10. Standalone RoE was 16.6% in Q2-2027 11. At September 30, 2026, the Bank had net worth of about ₹3.6 lakh crore. CET-1 ratio was 16.01%, and total capital adequacy ratio was 16.68% at September 30, 2026
+
+1. Net NPA ratio was 0.3% at September 30, 2026 compared to 0.35% at June 30, 2026 and 0.39% at September 30, 2025 2. During Q2-2027, there were net additions to gross NPAs of ₹1,213 crore 3. Gross NPA additions were ₹4,833 crore in Q2-2027. Recoveries and upgrades of NPAs, excluding write-offs and sale, were ₹3,620 crore in Q2-2027 4. Gross NPAs written off were ₹1,592 crore in Q2-2027 5. There was sale of NPAs of ₹133 crore for cash in the current quarter 6. Provisioning coverage ratio on non-performing loans was 75% at September 30, 2026 7. Total fund based outstanding to all borrowers under resolution as per the various extant regulations was ₹1,185 crore 8. Loans and non-fund based outstanding to performing corporate borrowers rated BB and below were ₹3,547 crore at September 30, 2026 9. The total provisions during Q2-2027 were ₹851 crore or 4.1% of core operating profit and 0.2% of average advances 10. The Bank continues to hold contingency provisions of ₹13,100 crore at September 30, 2026
+
+Also, the sustainability of your deposit and credit growth. Almost 27-28% year-on-year deposit growth, but excluding FCNR, deposits just grew by 17%. Again, the loan book from 30% would have fallen to about 24% excluding the loans by international branches against these FCNR deposits. So where are you seeing growth? How do you see that stabilising as well? And a quick point, if you could add on your slippages of ₹4,833 crore, where they came from? Anything you would like to flag?
+
+That is three questions, Ritu, but let me answer them. As we have reported, the net interest income increased by about 17.7% year-on-year and about 3.9% sequentially. The NIM was 4.18% for this quarter compared to 4.36% in the previous quarter. As I had mentioned, if I exclude the interest on tax refund, it was 4.28% in the previous quarter. So, we are really talking of a decline from 4.28% to 4.18%. That is largely a function of FCNR(B) which accordingly results in a higher deposit amount and a lower CASA. As you would have seen, our CASA ratio has marginally declined, which has been responsible for the marginal decline in the NIMs. The large sequential increase in retail term deposits and increase in overseas branches of total assets has also led to moderation in margins. The full impact would largely get reflected in the third quarter, after which we expect the margins to start moving up, even based on the current level of policy rates.
+
+The other thing which I want to talk about, given you talked about it, I thiznk the FCNR (B) has also provided us with a lot of opportunities to interact with a new set of NRI customers. As a bank, we continue to be focussed on PBT, and that is an area that we will look forward to expanding as we go forward. You talked about the deposit growth excluding FCNR (B). Our outstanding deposits, as you would have noticed, grew about 27% year-on-year. For the period-end deposits excluding FCNR (B), we have grown by about 17% and 3.1% sequentially. As you would be aware, we continue to focus on money-in-bank rather than delivering any particular kind of deposits, whether it is CA, SA or deposits. It is really up to the customer to choose. Our overall approach continues to have quality customers and be the primary banker with a good share of customer wallet across retail, business banking, and corporate.
+
+Ritu, our corporate portfolio, I think you rightly pointed out, grew by about 30%. The growth has been largely broad-based, and it includes segments across capex, and a higher working capital cycle. Yes, there has been some demand shift from bond market, ECBs, towards bank borrowing. Also, the corporates have been building buffers to ensure resiliency. As you are aware, we are a very active franchise and engage with corporate clients across the spectrum, and we continue to pursue opportunities and work with them. We are happy to lend as long as they fit within our risk and return thres
+
+=== NEWS ===
+[2026-11-11] ICICI Bank Limited (ICICIBANK.NS) stock price, news, quote and history
+[2026-11-13] ICICI Bank Share Price Today, ICICI Bank Stock Price Live NSE/BSE Updates
+[2026-10-17] India's ICICI Bank Q2 profit rises 20.1%, beats estimates
+[2026-10-29] How to Add Money to US Stocks on Groww with ICICI Bank: A Step-by-Step Guide
+[2026-08-18] ICICI Bank Ends HDFC Bank’s 3-Year Run as Top MF Holding
+[2026-11-06] ICICI Bank extends rally, soars 10% in 4 days; market cap nears ₹11 trn
+[2026-10-17] ICICI Bank Q2 profit rises 20.1% to ₹14,843 crore; NIM falls to 4.18%
+[2026-09-19] ICICI Bank changes net banking URL: New .bank.in address, CAPTCHA feature - what customers need to know
+
+=== EXTRACTED JSON ===
+{"core_business_model":"BFSI_BANK_NBFC, FMCG_RETAIL_NEWAGE","segment_facts":[{"segment_name":"Retail","financial_performance":"Revenue: ₹824.0 Cr (+14.8% YoY)","reported_driver":"Retail and rural banking growth driven by retail term deposits"},{"segment_name":"Corporate","financial_performance":"Revenue: ₹3,547.7 Cr (+10.4% YoY)","reported_driver":"Domestic corporate loan book expansion"},{"segment_name":"SME","financial_performance":"Revenue: ₹2,909.2 Cr (+11.1% YoY)","reported_driver":"Business banking and SME lending growth"}],"key_catalysts_and_events":[{"event_type":"ORDER_BOOK","description":"Retail and rural portfolio combined grew by 14.8% YoY to ₹9,456.87 Cr","timeline":"Reported Quarter"},{"event_type":"ORDER_BOOK","description":"Jewel loan book grew by 79% YoY to ₹557.94 Cr","timeline":"Reported Quarter"}],"raw_materials_and_macro_sensitivities":[],"explicitly_named_competitors":[],"management_numerical_guidance":"Not explicitly stated in filing.","factual_news_digest":["[2026-11-11] ICICI Bank Limited (ICICIBANK.NS) stock price, news, quote and history","[2026-11-13] ICICI Bank Share Price Today, ICICI Bank Stock Price Live NSE/BSE Updates","[2026-10-17] India's ICICI Bank Q2 profit rises 20.1%, beats estimates","[2026-10-29] How to Add Money to US Stocks on Groww with ICICI Bank: A Step-by-Step Guide","[2026-08-18] ICICI Bank Ends HDFC Bank’s 3-Year Run as Top MF Holding"]}

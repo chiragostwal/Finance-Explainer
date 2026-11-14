@@ -1,39 +1,58 @@
 import argparse
 import io
-import os
+import logging
+import sys
 import time
 import urllib.request
 import warnings
 from datetime import datetime
+from pathlib import Path
+
 import duckdb
 import pandas as pd
+import yaml
 import yfinance as yf
 from tqdm import tqdm
-import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+# ==========================================================
+# 0. LOAD CONFIGURATION & LOGGING
+# ==========================================================
+CONFIG_PATH = Path(__file__).parent / "config.yaml"
+with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+    CONFIG = yaml.safe_load(f)
+
+log_cfg = CONFIG.get("logging", {})
+logging.basicConfig(
+    level=getattr(logging, log_cfg.get("level", "INFO")),
+    format=log_cfg.get("format", "%(asctime)s - %(levelname)s - %(message)s")
+)
 logger = logging.getLogger(__name__)
 
-# Suppress specific warnings
+# Suppress Pandas 4.0 and yfinance internal warnings
 warnings.filterwarnings("ignore", message=".*inplace keyword.*")
 warnings.filterwarnings("ignore")
 
-# Configuration (can be moved to a config file or environment variables)
-CONFIG = {
-    "DB_PATH": "NSE-universe-raw.duckdb",
-    "NSE_URL": "https://archives.nseindia.com/content/equities/EQUITY_L.csv",
-    "YF_TIMEOUT": 10,
-    "YF_SLEEP": 0.35,
-    "MAX_RETRIES": 3,
-}
 
 def get_current_iso_week() -> str:
     """Returns ISO year and week string, e.g. '2026-W45'."""
     return datetime.now().strftime("%Y-W%V")
 
-def init_db(conn: duckdb.DuckDBPyConnection):
+
+def resolve_sync_week(db_config: dict) -> str:
+    """Uses sync_week from config.yaml if explicitly set, otherwise dynamic ISO week."""
+    cfg_week = db_config.get("sync_week")
+    if cfg_week and str(cfg_week).strip().lower() != "auto":
+        return str(cfg_week).strip()
+    return get_current_iso_week()
+
+
+# ==========================================================
+# 1. DATABASE INITIALIZATION
+# ==========================================================
+def init_db(conn: duckdb.DuckDBPyConnection, db_name: str):
     """Initializes DuckDB tables if they do not exist."""
+    logger.info(f"Initializing database schema for: {db_name}")
+
     conn.execute("""
         CREATE TABLE IF NOT EXISTS nse_universe_ranks (
             ticker VARCHAR PRIMARY KEY,
@@ -48,6 +67,7 @@ def init_db(conn: duckdb.DuckDBPyConnection):
             updated_at VARCHAR
         )
     """)
+
     conn.execute("""
         CREATE TABLE IF NOT EXISTS equities_master (
             ticker VARCHAR PRIMARY KEY,
@@ -91,75 +111,92 @@ def init_db(conn: duckdb.DuckDBPyConnection):
         )
     """)
 
-def fetch_nse_master() -> pd.DataFrame:
-    """Fetches and cleans the NSE Master List."""
+
+# ==========================================================
+# 2. DATA FETCHERS & RANKING ENGINE
+# ==========================================================
+def fetch_nse_master(db_config: dict) -> pd.DataFrame:
+    """Fetches and cleans the NSE Master Equity List."""
     try:
-        logger.info("Fetching NSE Master List...")
-        req = urllib.request.Request(CONFIG["NSE_URL"], headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=CONFIG["YF_TIMEOUT"]) as response:
-            data = response.read().decode('utf-8')
+        logger.info(f"Fetching NSE Master List from {db_config['nse_url']}...")
+        req = urllib.request.Request(
+            db_config["nse_url"],
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        )
+        with urllib.request.urlopen(req, timeout=15) as response:
+            data = response.read().decode("utf-8")
+
         master_df = pd.read_csv(io.StringIO(data))
         master_df.columns = master_df.columns.str.strip()
-        eq_df = master_df[master_df['SERIES'] == 'EQ'].copy()
-        eq_df['TICKER'] = eq_df['SYMBOL'].astype(str).str.strip() + ".NS"
+
+        eq_df = master_df[master_df["SERIES"] == db_config["nse_series"]].copy()
+        eq_df["TICKER"] = eq_df["SYMBOL"].astype(str).str.strip() + ".NS"
         return eq_df
     except Exception as e:
-        logger.error(f"Failed to fetch NSE Master List: {e}")
+        logger.error(f"Failed to fetch NSE Master List for {db_config['name']}: {e}")
         raise
 
-def fetch_yahoo_data(ticker: str, retries: int = CONFIG["MAX_RETRIES"]) -> dict:
-    """Fetches Yahoo Finance data with retries."""
-    for i in range(retries):
+
+def fetch_yahoo_data(ticker: str, retries: int = 3, sleep: float = 0.35) -> dict:
+    """Fetches Yahoo Finance .info dictionary with rate-limit throttling and retries."""
+    for attempt in range(retries):
         try:
+            time.sleep(sleep)  # Always throttle before hitting Yahoo Finance
             t = yf.Ticker(ticker)
             info = t.info
             if info and ("longName" in info or "shortName" in info):
                 return info
-            else:
-                logger.warning(f"Empty or invalid data for {ticker}, retrying...")
-                time.sleep(CONFIG["YF_SLEEP"])
+            logger.warning(f"Empty/delisted payload for {ticker}, retry {attempt + 1}/{retries}...")
         except Exception as e:
-            logger.warning(f"Error fetching data for {ticker}, retrying... ({i+1}/{retries})")
-            time.sleep(CONFIG["YF_SLEEP"])
+            logger.warning(f"Error fetching {ticker} ({attempt + 1}/{retries}): {e}")
+            time.sleep(sleep * 2)
+
     logger.error(f"Failed to fetch data for {ticker} after {retries} attempts.")
     return {}
 
-def refresh_universe_rankings(conn: duckdb.DuckDBPyConnection, force: bool = False):
-    """Fetches and updates nse_universe_ranks table."""
-    current_week = get_current_iso_week()
+
+def refresh_universe_rankings(conn: duckdb.DuckDBPyConnection, db_config: dict, force: bool = False):
+    """Sweeps live market caps and updates nse_universe_ranks table."""
+    current_week = resolve_sync_week(db_config)
     existing_count = conn.execute(
         "SELECT COUNT(*) FROM nse_universe_ranks WHERE sync_week = ?", [current_week]
     ).fetchone()[0]
+
     if existing_count > 2000 and not force:
-        logger.info(f"Universe rankings already synced for {current_week}. Skipping.")
+        logger.info(
+            f"Universe rankings already synced for {db_config['name']} ({current_week}, {existing_count} stocks). Skipping."
+        )
         return
 
-    logger.info("Fetching and cleaning NSE Master List...")
-    eq_df = fetch_nse_master()
+    eq_df = fetch_nse_master(db_config)
+    tickers = eq_df["TICKER"].tolist()
+    sleep_interval = min(float(db_config.get("sleep_interval", 0.35)), 0.15)
 
-    logger.info(f"Sweeping live market caps for {len(eq_df)} stocks...")
+    logger.info(f"Sweeping live market caps for {len(tickers)} stocks...")
     market_caps = {}
-    for ticker in tqdm(eq_df['TICKER'].tolist(), desc="Fetching Market Caps"):
+
+    for ticker in tqdm(tickers, desc="Step 1: Fetching Market Caps"):
         try:
             t = yf.Ticker(ticker)
-            mcap = t.fast_info.get('market_cap', 0)
+            mcap = t.fast_info.get("market_cap", 0)
             if not mcap or mcap == 0:
-                mcap = t.info.get('marketCap', 0)
+                mcap = t.info.get("marketCap", 0)
             market_caps[ticker] = float(mcap or 0.0)
-            time.sleep(CONFIG["YF_SLEEP"])
+            time.sleep(sleep_interval)
         except Exception:
             market_caps[ticker] = 0.0
 
-    eq_df['MARKET_CAP'] = eq_df['TICKER'].map(market_caps).fillna(0.0)
-    eq_df['MARKET_CAP_CR'] = (eq_df['MARKET_CAP'] / 1e7).round(2)
+    eq_df["MARKET_CAP"] = eq_df["TICKER"].map(market_caps).fillna(0.0)
+    eq_df["MARKET_CAP_CR"] = (eq_df["MARKET_CAP"] / 1e7).round(2)
+
     ranked_universe = (
-        eq_df[eq_df['MARKET_CAP'] > 0]
-        .sort_values(by='MARKET_CAP', ascending=False)
+        eq_df[eq_df["MARKET_CAP"] > 0]
+        .sort_values(by="MARKET_CAP", ascending=False)
         .reset_index(drop=True)
     )
-    ranked_universe['MARKET_CAP_RANK'] = ranked_universe.index + 1
-    ranked_universe['SYNC_WEEK'] = current_week
-    ranked_universe['UPDATED_AT'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ranked_universe["MARKET_CAP_RANK"] = ranked_universe.index + 1
+    ranked_universe["SYNC_WEEK"] = current_week
+    ranked_universe["UPDATED_AT"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     conn.execute("DELETE FROM nse_universe_ranks")
     conn.execute("""
@@ -169,10 +206,13 @@ def refresh_universe_rankings(conn: duckdb.DuckDBPyConnection, force: bool = Fal
             MARKET_CAP, MARKET_CAP_CR, MARKET_CAP_RANK, SYNC_WEEK, UPDATED_AT
         FROM ranked_universe
     """)
-    logger.info(f"Ranked and stored {len(ranked_universe)} active NSE equities for {current_week}.")
+    logger.info(
+        f"Ranked and stored {len(ranked_universe)} active NSE equities in {db_config['path']} (Week {current_week})."
+    )
+
 
 def classify_market_cap(rank: int, mcap_cr: float) -> str:
-    """Classifies stocks by market cap using a custom rule set."""
+    """Classifies stocks using SEBI rank rules + Micro-Cap tiering."""
     if rank <= 100:
         return "Large_Cap"
     elif rank <= 250:
@@ -183,42 +223,47 @@ def classify_market_cap(rank: int, mcap_cr: float) -> str:
         return "Micro_Cap"
     return "Nano_Cap"
 
-def refresh_deep_fundamentals(conn: duckdb.DuckDBPyConnection, top_n: int = 750):
-    """Fetches deep fundamentals for top ranked stocks."""
-    current_week = get_current_iso_week()
-    query = """
+
+# ==========================================================
+# 3. DEEP FUNDAMENTALS SYNC
+# ==========================================================
+def refresh_deep_fundamentals(conn: duckdb.DuckDBPyConnection, db_config: dict, top_n: int):
+    """Fetches deep fundamentals for top ranked stocks with weekly checkpointing."""
+    current_week = resolve_sync_week(db_config)
+    limit_sql = f"LIMIT {top_n}" if top_n > 0 else ""
+
+    query = f"""
         SELECT r.ticker, r.company_name, r.market_cap, r.market_cap_cr, r.market_cap_rank
-        FROM nse_universe_ranks r
+        FROM (
+            SELECT * FROM nse_universe_ranks 
+            ORDER BY market_cap_rank ASC 
+            {limit_sql}
+        ) r
         LEFT JOIN equities_master e ON r.ticker = e.ticker AND e.sync_week = ?
         WHERE e.ticker IS NULL
         ORDER BY r.market_cap_rank ASC
     """
-    if top_n > 0:
-        query = f"""
-            SELECT r.ticker, r.company_name, r.market_cap, r.market_cap_cr, r.market_cap_rank
-            FROM (SELECT * FROM nse_universe_ranks ORDER BY market_cap_rank ASC LIMIT {top_n}) r
-            LEFT JOIN equities_master e ON r.ticker = e.ticker AND e.sync_week = ?
-            WHERE e.ticker IS NULL
-            ORDER BY r.market_cap_rank ASC
-        """
 
     pending_df = conn.execute(query, [current_week]).df()
     if pending_df.empty:
-        logger.info(f"All target stocks are already synced for {current_week}!")
+        logger.info(f"All target stocks are already synced for {db_config['name']} ({current_week})!")
         return
 
-    logger.info(f"Fetching deep fundamentals for {len(pending_df)} remaining stocks...")
+    logger.info(f"Fetching deep fundamentals for {len(pending_df)} remaining stocks (Week {current_week})...")
     failed = []
-    for _, row in tqdm(pending_df.iterrows(), total=len(pending_df), desc="Fetching Deep Data"):
-        ticker = row['ticker']
-        rank = int(row['market_cap_rank'])
+    retries = int(db_config.get("max_retries", 3))
+    sleep_sec = float(db_config.get("sleep_interval", 0.35))
+
+    for _, row in tqdm(pending_df.iterrows(), total=len(pending_df), desc="Step 2: Deep Fundamentals"):
+        ticker = row["ticker"]
+        rank = int(row["market_cap_rank"])
         try:
-            info = fetch_yahoo_data(ticker)
+            info = fetch_yahoo_data(ticker, retries=retries, sleep=sleep_sec)
             if not info:
                 failed.append(ticker)
                 continue
 
-            mcap = float(info.get("marketCap") or row['market_cap'] or 0.0)
+            mcap = float(info.get("marketCap") or row["market_cap"] or 0.0)
             mcap_cr = round(mcap / 1e7, 2)
             cap_cat = classify_market_cap(rank, mcap_cr)
 
@@ -227,7 +272,6 @@ def refresh_deep_fundamentals(conn: duckdb.DuckDBPyConnection, top_n: int = 750)
             sma50 = float(info.get("fiftyDayAverage") or close)
             dist_200 = ((close - sma200) / sma200) * 100 if sma200 else 0.0
             dist_50 = ((close - sma50) / sma50) * 100 if sma50 else 0.0
-
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
             conn.execute("""
@@ -275,11 +319,12 @@ def refresh_deep_fundamentals(conn: duckdb.DuckDBPyConnection, top_n: int = 750)
                     dist_from_50dma = EXCLUDED.dist_from_50dma,
                     fifty_two_week_high = EXCLUDED.fifty_two_week_high,
                     fifty_two_week_low = EXCLUDED.fifty_two_week_low,
+                    deep_intelligence_json = COALESCE(EXCLUDED.deep_intelligence_json, equities_master.deep_intelligence_json),
                     sync_week = EXCLUDED.sync_week,
                     updated_at = EXCLUDED.updated_at
             """, (
                 ticker,
-                info.get("longName") or info.get("shortName") or row['company_name'],
+                info.get("longName") or info.get("shortName") or row["company_name"],
                 info.get("sector", "Unknown"),
                 info.get("industry", "Unknown"),
                 cap_cat,
@@ -324,16 +369,30 @@ def refresh_deep_fundamentals(conn: duckdb.DuckDBPyConnection, top_n: int = 750)
     total_synced = conn.execute(
         "SELECT COUNT(*) FROM equities_master WHERE sync_week = ?", [current_week]
     ).fetchone()[0]
-    logger.info(f"Weekly Sync Complete! {total_synced} stocks up-to-date for {current_week}. Failed: {len(failed)}")
+    logger.info(
+        f"Weekly Sync Complete! {total_synced} stocks up-to-date in '{db_config['path']}'. Failed: {len(failed)}"
+    )
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Weekly NSE DuckDB Refresh Pipeline")
-    parser.add_argument("--top-n", type=int, default=750, help="Number of top ranked stocks for deep pull (0 = all)")
+    parser = argparse.ArgumentParser(description="Weekly NSE Universe & Deep Fundamentals Sync Pipeline")
+    parser.add_argument("--database", type=str, default="nse_universe", help="Database name from config.yaml")
+    parser.add_argument("--top-n", type=int, default=None, help="Override top_n from config (0 = all stocks)")
     parser.add_argument("--force-rank", action="store_true", help="Force re-running the market cap sweep")
     args = parser.parse_args()
 
-    conn = duckdb.connect(CONFIG["DB_PATH"])
-    init_db(conn)
-    refresh_universe_rankings(conn, force=args.force_rank)
-    refresh_deep_fundamentals(conn, top_n=args.top_n)
-    conn.close()
+    db_config = next((db for db in CONFIG["databases"] if db["name"] == args.database), None)
+    if not db_config:
+        logger.error(f"Database '{args.database}' not found in config.yaml.")
+        sys.exit(1)
+
+    target_top_n = args.top_n if args.top_n is not None else int(db_config.get("top_n", 750))
+    db_file_path = Path(__file__).parent / db_config["path"]
+
+    conn = duckdb.connect(str(db_file_path))
+    try:
+        init_db(conn, db_config["name"])
+        refresh_universe_rankings(conn, db_config, force=args.force_rank)
+        refresh_deep_fundamentals(conn, db_config, top_n=target_top_n)
+    finally:
+        conn.close()

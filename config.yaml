@@ -1,8 +1,8 @@
 databases:
   - name: nse_universe
     path: "NSE-universe-raw.duckdb"
-    description: "NSE universe of equities with market cap and fundamental data"
-    sync_week: "2026-W45"
+    description: "NSE universe of equities with market cap, fundamentals, and corporate intelligence"
+    sync_week: "auto"
     max_retries: 3
     sleep_interval: 0.35
     nse_url: "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
@@ -12,22 +12,47 @@ databases:
   - name: mutual_funds
     path: "mutual-funds-raw.duckdb"
     description: "Mutual fund data (to be populated)"
-    sync_week: "2026-W45"
+    sync_week: "auto"
     max_retries: 3
     sleep_interval: 0.35
-    nse_url: "https://archives.nseindia.com/content/mf/..."
+    nse_url: "https://www.amfiindia.com/spages/NAVAll.txt"
     nse_series: "MF"
     top_n: 500
 
   - name: ipo_data
     path: "ipo-raw.duckdb"
     description: "IPO data (to be populated)"
-    sync_week: "2026-W45"
+    sync_week: "auto"
     max_retries: 3
     sleep_interval: 0.35
-    nse_url: "https://archives.nseindia.com/content/ipo/..."
+    nse_url: "https://archives.nseindia.com/content/ipo/"
     nse_series: "IPO"
     top_n: 100
+
+intelligence_extraction:
+  max_presentation_slides: 18
+  max_presentation_chars: 12000
+  min_slide_chars: 120
+  min_slide_score: 4
+  max_transcript_chars: 18000
+  min_paragraph_chars: 80
+  max_news_items: 8
+  prompt_pres_char_cap: 6000
+  prompt_trans_char_cap: 9000
+  request_timeout: 25.0
+  nse_rate_limit_sleep: 0.6
+  error_backoff_sleep: 1.5
+
+llm:
+  ollama_url: "http://localhost:11434/api/chat"
+  extractor_model: "nemotron-3-nano:4b"
+  router_model: "qwen3.5:4b"
+  judge_model: "qwen3.5:9b"
+  temperature: 0.0
+  num_ctx: 8192
+  num_predict: 2500
+  timeout: 180.0
+  max_json_retries: 2
 
 logging:
   level: INFO
