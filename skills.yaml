@@ -1,6 +1,15 @@
+# skills.yaml (v3): extract-then-bind prompts unchanged, sector coverage extended.
+# Design notes for a 4B extractor:
+#   * Only the top 2 archetypes are injected, so each rules block is short (3-4 bullets).
+#   * Every block names the metric families to prefer from [TYPED FACT CATALOG] and one or two
+#     "never label X as Y" guards. No concrete numbers or company names.
+#   * Keywords are matched as substrings of the NSE industry string, so they are phrases, not short stems.
+#   * Regexes are matched against the filing text with word boundaries.
+
 sector_archetypes:
+  # ---------------- FINANCIALS ----------------
   BFSI_BANK_NBFC:
-    nse_keywords: ["bank", "nbfc", "housing finance", "microfinance", "fintech", "lending"]
+    nse_keywords: ["bank", "nbfc", "housing finance", "microfinance", "lending", "finance - nbfc", "financial institution"]
     regex: '\b(nim|net interest|gnpa|nnpa|npa|credit cost|slippage|provision|pcr|casa|deposit|advances|aum|disbursement|cost of funds|yield on advances|crar|roaa)\b'
     rules: |
       - Sector is BANKING / NBFC.
@@ -10,65 +19,210 @@ sector_archetypes:
 
   INSURANCE:
     nse_keywords: ["insurance", "life insurance", "general insurance"]
-    regex: '\b(vnb|value of new business|ape|annualized premium|persistency|solvency ratio|embedded value|iev|par|non-par|ulip|annuity|claim ratio|combined ratio|gwp|nwp)\b'
+    regex: '\b(vnb|value of new business|ape|annualized premium|persistency|solvency ratio|embedded value|iev|non-par|ulip|annuity|claim ratio|combined ratio|gwp|nwp|nbp)\b'
     rules: |
       - Sector is INSURANCE. Select `fact_id` entries from `[TYPED FACT CATALOG]` and keep exact insurance metric names (APE, VNB, VNB Margin, GWP, Persistency, AUM).
+      - Never call premium (GWP, NWP, APE) "Revenue".
 
+  CAPITAL_MARKETS_AMC:
+    nse_keywords: ["capital markets", "broking", "stock exchange", "exchange and data platform", "asset management", "depository", "stockholding", "credit rating", "registrar", "wealth", "financial technology", "fintech", "payments"]
+    regex: '\b(adtv|daily turnover|market share|demat accounts?|active clients?|broking revenue|cost[- ]to[- ]income|assets under management|aum|sip book|yield on aum|tpv|take rate|payment volume)\b'
+    rules: |
+      - Sector is CAPITAL MARKETS / AMC / EXCHANGES / FINTECH.
+      - Bind Total Income, PAT, EBITDA and AUM / turnover / payment-volume facts from `[TYPED FACT CATALOG]`; AUM and volume are not Revenue.
+      - Keep each business line (broking, AMC, depository, payments, lending) as its own segment only when the catalog lists it.
+
+  # ---------------- TECHNOLOGY & SERVICES ----------------
   IT_SAAS:
-    nse_keywords: ["software", "it enabled", "bpo", "kpo", "it services", "computers"]
-    regex: '\b(tcv|acv|deal wins|large deals|pipeline|attrition|headcount|fresher|bench|subcontracting|wage hike|onsite|offshore|constant currency|cc growth|billing rate|genai|agentic)\b'
+    nse_keywords: ["software", "it enabled", "bpo", "kpo", "it services", "computers - software", "information technology", "data processing"]
+    regex: '\b(tcv|acv|deal wins|large deals|attrition|headcount|fresher|subcontracting|wage hike|onsite|offshore|constant currency|cc growth|billing rate|genai|agentic)\b'
     rules: |
       - Sector is IT SERVICES / SOFTWARE.
       - Preserve exact currencies and units (`US$ Bn`, `US$ Mn`, `₹ Cr`) from `[TYPED FACT CATALOG]`.
+      - TCV and deal wins are ORDER_BOOK events, not Revenue.
 
   TELECOM_DIGITAL:
-    nse_keywords: ["telecom", "telecommunication", "wireless", "broadband", "digital", "media"]
+    nse_keywords: ["telecom", "telecommunication", "wireless", "broadband", "cellular"]
     regex: '\b(arpu|subscriber|net adds|churn|5g|fwa|home pass|data traffic|indus towers|spectrum|agr|ebitdaal|capex intensity)\b'
     rules: |
       - Sector is TELECOM / DIGITAL PLATFORMS.
       - Keep Consolidated totals in "Consolidated" and bind sub-segments strictly via `fact_id` from `[TYPED FACT CATALOG]`.
+      - ARPU and subscriber counts are not Revenue.
 
+  MEDIA_ENTERTAINMENT:
+    nse_keywords: ["media", "entertainment", "broadcasting", "film", "publishing", "printing", "advertising", "radio", "gaming", "animation"]
+    regex: '\b(advertising revenue|ad revenue|subscription revenue|viewership|box office|screens?|occupancy|content cost|ott|reach|circulation|trp|admissions)\b'
+    rules: |
+      - Sector is MEDIA / ENTERTAINMENT / PUBLISHING.
+      - Bind Advertising, Subscription, and Content / Film revenue facts separately from `[TYPED FACT CATALOG]`.
+      - Screens, viewers and subscriber counts are not money.
+
+  BUSINESS_SERVICES_EDUCATION:
+    nse_keywords: ["business services", "professional services", "staffing", "education", "outsourcing", "human resource", "e-commerce services", "support services", "environmental", "waste management"]
+    regex: '\b(billable|utili[sz]ation|placements?|flexi staff|associate headcount|enrol?ments?|students?|bookings|renewal rate|net retention|gmv|take rate|billing days)\b'
+    rules: |
+      - Sector is BUSINESS SERVICES / STAFFING / EDUCATION.
+      - Bind Revenue, EBITDA and PAT from `[TYPED FACT CATALOG]`; enrolments, headcount and placements are counts, not money.
+      - Bookings and billings are not Revenue.
+
+  # ---------------- HEALTHCARE ----------------
   PHARMA_HEALTHCARE:
-    nse_keywords: ["pharma", "pharmaceuticals", "healthcare", "hospital", "biotech", "diagnostics", "api"]
-    regex: '\b(anda|usfda|483|warning letter|dmf|api|formulation|chronic|acute|cdmo|cro|biosimilar|peptide|glp-1|nlem|mr productivity|arpob|alos|bed occupancy|brownfield bed|payor mix)\b'
+    nse_keywords: ["pharma", "pharmaceuticals", "biotech", "drugs"]
+    regex: '\b(anda|usfda|483|warning letter|dmf|formulation|chronic|acute|cdmo|cro|biosimilar|peptide|glp-1|nlem|mr productivity|api)\b'
     rules: |
-      - Sector is PHARMA / CDMO / HEALTHCARE.
+      - Sector is PHARMA / CDMO.
       - Preserve exact USD (`$ Mn`) vs INR (`₹ Cr` / `₹ Mn`) units from `[TYPED FACT CATALOG]`.
+      - Regulatory observations and approvals are POLICY_REGULATION events, not Revenue drivers.
 
-  FMCG_RETAIL_NEWAGE:
-    nse_keywords: ["fmcg", "retailing", "consumer", "food", "personal products", "e-retail", "qsr", "apparel", "jewellery"]
-    regex: '\b(sssg|same store|like-for-like|lfl|volume growth|uvg|rural|urban|grammage|sku|store addition|footfall|sq\.?\s*ft|gov|gmv|take rate|aov|dark store|blinkit|instamart|mtu|mau)\b'
+  HEALTHCARE_SERVICES:
+    nse_keywords: ["hospital", "healthcare services", "diagnostics", "medical equipment", "healthcare facilities", "healthcare"]
+    regex: '\b(arpob|alos|bed occupancy|occupancy|brownfield bed|greenfield|payor mix|operational beds|bed addition|test volumes?|patients?)\b'
     rules: |
-      - Sector is FMCG / RETAIL / E-COMMERCE.
-      - Never label retail store area (mn sq ft) or store count as "Revenue". Bind segment facts via `fact_id` from `[TYPED FACT CATALOG]`.
+      - Sector is HOSPITALS / DIAGNOSTICS / MEDICAL DEVICES.
+      - Bind Revenue, EBITDA and PAT from `[TYPED FACT CATALOG]`; beds, patients and tests are counts, not money.
+      - ARPOB is a per-bed-per-day value, not segment Revenue.
 
+  # ---------------- CONSUMER ----------------
+  FMCG_FOOD_BEV:
+    nse_keywords: ["fmcg", "food products", "consumer food", "beverages", "personal products", "household products", "tobacco", "breweries", "distilleries", "dairy", "packaged food", "edible oil"]
+    regex: '\b(volume growth|uvg|price[- ]mix|grammage|distribution reach|direct reach|rural|urban|gross margin|a&p|ad spends|sku)\b'
+    rules: |
+      - Sector is FMCG / FOOD / BEVERAGES.
+      - Bind Revenue, EBITDA and PAT from `[TYPED FACT CATALOG]`; volume growth is a percentage, not Revenue.
+      - A fall in margin is not "expansion"; keep the direction the source shows.
+
+  RETAIL_ECOMMERCE:
+    nse_keywords: ["retailing", "e-retail", "qsr", "restaurants", "jewellery", "diamond", "gems", "department store"]
+    regex: '\b(sssg|same store|like-for-like|lfl|store addition|footfall|sq\.?\s*ft|gov|gmv|take rate|aov|dark store|mtu|mau|bills|stores)\b'
+    rules: |
+      - Sector is RETAIL / E-COMMERCE / QSR / JEWELLERY.
+      - Never label retail store area (mn sq ft), store count or bills as "Revenue". Bind segment facts via `fact_id` from `[TYPED FACT CATALOG]`.
+      - Same-store growth is not total Revenue growth.
+
+  CONSUMER_DURABLES:
+    nse_keywords: ["consumer durables", "household appliances", "consumer electronics", "electronics", "furniture", "home furnishing", "lighting", "air conditioner"]
+    regex: '\b(room ac|rac|channel inventory|premiumi[sz]ation|exports?|bom|copper cost|commodity cost|wires and cables|fans|appliances|lighting)\b'
+    rules: |
+      - Sector is CONSUMER DURABLES / ELECTRONICS / HOME PRODUCTS.
+      - Bind Revenue, EBITDA and PAT from `[TYPED FACT CATALOG]`; keep each product line as a segment only when the catalog lists it.
+      - Never call volume or unit sales "Revenue".
+
+  TEXTILES_APPAREL:
+    nse_keywords: ["textile", "apparel", "garment", "fabric", "yarn", "footwear", "leather", "denim", "home textile", "readymade"]
+    regex: '\b(cotton|yarn|spindle|capacity utili[sz]ation|export orders?|realisation|realization|per piece|home textiles?|apparel|denim|fabric)\b'
+    rules: |
+      - Sector is TEXTILES / APPAREL / FOOTWEAR.
+      - Bind Revenue, EBITDA and PAT from `[TYPED FACT CATALOG]`; keep exports, domestic and each product line (yarn, fabric, garments) separate only when the catalog lists them.
+      - Cotton price and realisation are per-unit values, not Revenue.
+
+  HOSPITALITY_TRAVEL:
+    nse_keywords: ["hotel", "resort", "leisure", "tourism", "travel", "amusement", "restaurants & hospitality"]
+    regex: '\b(arr|revpar|occupancy|room inventory|keys|f&b|average room rate|rooms|managed hotels|pipeline of rooms|bookings|gross booking value)\b'
+    rules: |
+      - Sector is HOTELS / TRAVEL / LEISURE.
+      - Bind Revenue, EBITDA and PAT from `[TYPED FACT CATALOG]`; ARR, RevPAR and occupancy are per-room or percentage values, not Revenue.
+      - Room counts and keys are counts, never money.
+
+  # ---------------- AUTO ----------------
   AUTO_ANCILLARY:
-    nse_keywords: ["automobile", "auto components", "tyres", "2/3 wheelers", "passenger cars", "commercial vehicles", "tractors"]
+    nse_keywords: ["automobile", "auto components", "auto ancillar", "tyres", "2/3 wheelers", "two wheeler", "passenger cars", "commercial vehicles", "tractors", "batteries", "auto dealership"]
     regex: '\b(wholesales|retails|asp|suv mix|ev penetration|cafe norms|fame|pm e-drive|dealer inventory|content per vehicle|powertrain|2w|3w|pv|cv|mhcv|tractor|homologation)\b'
     rules: |
       - Sector is AUTOMOTIVE / EV / ANCILLARIES.
       - Keep Consolidated totals in "Consolidated" and never list the company's own brands or subsidiaries as competitors.
+      - Vehicle volumes (units) are counts, not Revenue.
 
+  # ---------------- INDUSTRIALS & INFRA ----------------
   CAPGOODS_DEFENSE_INFRA:
-    nse_keywords: ["capital goods", "defence", "aerospace", "construction", "engineering", "electrical", "ems", "cables", "industrial"]
-    regex: '\b(order inflow|order book|order backlog|book-to-bill|l1 bidder|working capital days|retention money|indigenization|make in india|ems|backward integration|epc|ham|bot|toll)\b'
+    nse_keywords: ["capital goods", "defence", "aerospace", "engineering", "electrical equipment", "electric equipment", "heavy electrical", "machinery", "cables", "electronic manufacturing", "industrial products", "industrial manufacturing", "railway wagon", "shipbuilding", "compressors", "bearings", "abrasives"]
+    regex: '\b(order inflow|order book|order backlog|book-to-bill|l1 bidder|working capital days|retention money|indigenization|make in india|ems|backward integration)\b'
     rules: |
-      - Sector is CAPITAL GOODS / DEFENSE / INFRA / EMS.
+      - Sector is CAPITAL GOODS / DEFENSE / EMS / INDUSTRIAL PRODUCTS.
       - Bind Revenue, Operating Profit, EBITDA, PAT, and Order Book strictly via `fact_id` from `[TYPED FACT CATALOG]`.
+      - Order Inflow and Order Book are ORDER_BOOK events, not Revenue.
+
+  INFRA_EPC_CONSTRUCTION:
+    nse_keywords: ["construction", "infrastructure", "engineering services", "roads", "highway", "epc", "civil", "dredging", "water infrastructure"]
+    regex: '\b(epc|ham|bot|toll|nhai|annuity|l1 bidder|order inflow|order book|execution|retention money|receivables days|working capital days|concession|road projects?)\b'
+    rules: |
+      - Sector is INFRA / EPC / CONSTRUCTION.
+      - Bind Revenue, EBITDA, PAT and Order Book from `[TYPED FACT CATALOG]`; Order Book is a backlog, not Revenue.
+      - Keep EPC, concession / BOT and real-estate arms as separate segments only when the catalog lists them.
+
+  LOGISTICS_TRANSPORT:
+    nse_keywords: ["logistics", "transport", "shipping", "aviation", "airline", "airport", "ports", "courier", "railway", "marine", "freight", "warehousing"]
+    regex: '\b(teu|cargo volumes?|freight|load factor|rask|cask|ask|passenger traffic|fleet|vessel|charter rate|tonne[- ]km|ebitda per|yield|cargo throughput|capacity utili[sz]ation|pax)\b'
+    rules: |
+      - Sector is LOGISTICS / SHIPPING / AVIATION / PORTS.
+      - Bind Revenue, EBITDA and PAT from `[TYPED FACT CATALOG]`; cargo volume (MMT, TEU), passengers and fleet size are physical units, never money.
+      - Freight rate, yield and RASK are per-unit values, not segment Revenue.
 
   REALESTATE_CEMENT_BLDG:
-    nse_keywords: ["realty", "real estate", "cement", "paints", "ceramics", "sanitaryware", "building products"]
+    nse_keywords: ["realty", "real estate", "cement", "paints", "ceramics", "sanitaryware", "building products", "building materials", "construction materials", "pipes", "plywood"]
     regex: '\b(pre-sales|presales|collections|launch pipeline|gdv|unsold inventory|carpet area|rera|ebitda per ton|ebitda/t|clinker|blended cement|whrs|lead distance|petcoke|tio2)\b'
     rules: |
       - Sector is REAL ESTATE / CEMENT / BUILDING MATERIALS.
       - Distinguish Operating EBITDA from Revenue via `[TYPED FACT CATALOG]`.
+      - Pre-sales and collections are bookings/cash metrics, not recognised Revenue; per-tonne values are unit economics.
 
-  COMMODITIES_ENERGY_POWER:
-    nse_keywords: ["oil", "gas", "petroleum", "refineries", "power", "metals", "mining", "steel", "coal", "chemicals", "fertilizers"]
-    regex: '\b(grm|refining margin|fuel cracks|ethane|kg d6|cbm|coking coal|hot rolled|hrc|pellet|spread per ton|plf|plant load factor|ppa|merchant power|tariff|bess|solar module|gw)\b'
+  # ---------------- MATERIALS ----------------
+  METALS_MINING:
+    nse_keywords: ["iron & steel", "steel", "metals", "non-ferrous", "aluminium", "copper", "zinc", "mining", "minerals", "coal", "ferro alloys", "castings", "forgings"]
+    regex: '\b(hot rolled|hrc|crude steel|pellet|coking coal|lme|aluminium|zinc|copper|spread per ton|net debt/ebitda|ebitda per tonne|realisation|realization|saleable steel|production volume)\b'
     rules: |
-      - Sector is ENERGY / OIL & GAS / METALS / POWER / CHEMICALS.
-      - Preserve physical units (MMT, TMT, GW, billion units) and foreign currency units (€ Mn, $ Mn) exactly as shown in `[TYPED FACT CATALOG]`.
+      - Sector is METALS / MINING / STEEL.
+      - Preserve physical units (MMT, TMT, kt) and foreign currency units (`$ Mn`, `€ Mn`) from `[TYPED FACT CATALOG]`.
+      - Realisation and EBITDA per tonne are per-unit values, not Revenue.
+
+  CHEMICALS:
+    nse_keywords: ["chemical", "specialty chem", "commodity chem", "petrochemical", "dyes", "pigments", "industrial gases", "carbon black", "explosives"]
+    regex: '\b(speciality|specialty|agrochemical|intermediates?|capacity expansion|anti[- ]dumping|china plus one|contract manufacturing|cdmo|spreads?|utili[sz]ation|caustic soda|chlor[- ]alkali|polymers?)\b'
+    rules: |
+      - Sector is CHEMICALS / SPECIALTY CHEMICALS.
+      - Bind Revenue, EBITDA and PAT from `[TYPED FACT CATALOG]`; use named product or end-use segments (agro, pharma, polymers) only when the catalog lists them.
+      - Capacity (tpa, MT) and spreads are physical or per-unit values, not Revenue.
+
+  AGRI_FERTILIZERS_SUGAR:
+    nse_keywords: ["fertilizer", "agro", "pesticide", "sugar", "seeds", "plantation", "coffee", "aquaculture", "fisheries", "agricultural"]
+    regex: '\b(subsidy|nbs|urea|dap|npk|crop protection|monsoon|kharif|rabi|sugar recovery|ethanol|cane crushing|msp|fcs|acreage)\b'
+    rules: |
+      - Sector is AGRICULTURE / FERTILIZERS / SUGAR.
+      - Bind Revenue, EBITDA and PAT from `[TYPED FACT CATALOG]`; subsidy income is not product Revenue unless the source labels it so.
+      - Monsoon, MSP and ethanol policy are macro sensitivities or POLICY_REGULATION events.
+
+  PAPER_PACKAGING_PLASTICS:
+    nse_keywords: ["paper", "forest products", "packaging", "plastic", "glass", "containers", "polymer", "laminates", "jute"]
+    regex: '\b(packaging|pet|resin|pulp|kraft|laminates?|glass containers?|packaging film|polymer|capacity utili[sz]ation|realisation|realization)\b'
+    rules: |
+      - Sector is PAPER / PACKAGING / PLASTICS / GLASS.
+      - Bind Revenue, EBITDA and PAT from `[TYPED FACT CATALOG]`; resin and pulp prices are raw-material sensitivities.
+      - Capacity and volume (tpa, MT) are physical units, never money.
+
+  # ---------------- ENERGY & UTILITIES ----------------
+  OIL_GAS:
+    nse_keywords: ["oil & gas", "oil and gas", "petroleum", "refiner", "oil exploration", "gas distribution", "gas transmission", "lng", "oil marketing", "lubricants"]
+    regex: '\b(grm|refining margin|fuel cracks|brent|throughput|crude|lng|cgd|upstream|downstream|apm|ethane|kg d6|cbm|marketing margin|under[- ]recoveries?)\b'
+    rules: |
+      - Sector is OIL & GAS / REFINING / CGD.
+      - Preserve physical units (MMT, mmscmd, bbl) and currency units from `[TYPED FACT CATALOG]`.
+      - GRM and marketing margin are per-barrel / per-litre values, not Revenue.
+
+  POWER_UTILITIES:
+    nse_keywords: ["power", "electric utilit", "renewable", "solar", "power transmission", "power distribution", "independent power", "transmission"]
+    regex: '\b(plf|plant load factor|ppa|merchant power|tariff|bess|solar module|installed capacity|re capacity|discoms?|aggregate technical|regulated equity|gw|mw|billion units)\b'
+    rules: |
+      - Sector is POWER / UTILITIES / RENEWABLES.
+      - Preserve physical units (MW, GW, billion units) and keep them out of money fields.
+      - Bind Revenue, EBITDA and PAT from `[TYPED FACT CATALOG]`; tariff and regulated equity are not Revenue.
+
+  # ---------------- CATCH-ALLS ----------------
+  DIVERSIFIED_CONGLOMERATE:
+    nse_keywords: ["diversified", "trading", "conglomerate", "holding", "services - others"]
+    regex: ''
+    rules: |
+      - Sector is DIVERSIFIED / TRADING.
+      - Keep Consolidated totals in "Consolidated" and bind each named business segment strictly via `fact_id` from `[TYPED FACT CATALOG]`.
+      - Never move a group-level figure into a single business segment.
 
   GENERAL_CORPORATE:
     nse_keywords: []
@@ -78,10 +232,16 @@ sector_archetypes:
 
 prompts:
   extractor_prompt: |
-    Extract strictly objective corporate facts for {company_name} (NSE: {symbol}) using the deterministic `[TYPED FACT CATALOG]` and source blocks below.
+    Extract strictly objective corporate facts for {company_name} (NSE: {symbol}) using the deterministic catalogs and source blocks below.
 
     [TYPED FACT CATALOG (PRE-VERIFIED NUMBERS, UNITS & METRIC LABELS)]:
     {typed_fact_catalog}
+
+    [NEWS CATALOG (PRE-VERIFIED DATES, FISCAL QUARTERS & EVENT TYPES)]:
+    {news_catalog}
+
+    [GUIDANCE & OUTLOOK CATALOG (TAGGED BY MODALITY: GUIDANCE VS HEDGED)]:
+    {guidance_catalog}
 
     OFFICIAL NSE INDUSTRY: {nse_industry_str}
     DETECTED SECTOR ARCHETYPE: {detected_sectors}
@@ -89,23 +249,22 @@ prompts:
     {sector_specific_block}
 
     MANDATORY EXTRACT-THEN-BIND RULES:
-    1. BIND SEGMENTS TO FACT IDs:
-       - For every entry in `segment_facts`, choose a `fact_id` (such as `"F001"`, `"F015"`, `"F032"`) from `[TYPED FACT CATALOG]` above.
-       - Select 1-2 Consolidated headline profit/income facts AND 2-3 major business/loan/product segment facts from `[TYPED FACT CATALOG]`.
-       - Copy the exact `metric`, `value`, and `change` from that `fact_id` into `financial_performance`, and write a concise `reported_driver` explaining what drove it from `[PRESENTATION]` or `[CONCALL]`.
-    2. STRICT TIMELINE & DATE COPYING:
-       - If an event in `key_catalysts_and_events` comes from `[NEWS]`, copy its exact `[YYYY-MM-DD]` date prefix verbatim as `timeline`.
-       - If an event comes from `[PRESENTATION]` or `[CONCALL]`, use the exact period label from `[TYPED FACT CATALOG]`.
+    1. BIND SEGMENTS TO `fact_id` (`F001..F045`):
+       - Pick up to 5 `fact_id` codes from `[TYPED FACT CATALOG]` above (1-2 Consolidated profit/income facts + 2-3 major business/loan/product segment facts).
+       - Write ONLY the `fact_id` and a concise `reported_driver` that explains that specific metric (never attach a driver for one segment/metric to a different `fact_id`, and note if a parenthesized number is a loss).
+    2. BIND EVENTS TO `news_id` (`N01..N08`) OR SLIDE PERIOD:
+       - When selecting an event from `[NEWS CATALOG]`, include its `news_id` (e.g., `"N01"`). Python will automatically bind the exact date, fiscal quarter, and headline.
+       - For events from `[PRESENTATION]` or `[CONCALL]`, leave `news_id` empty `""` and set `timeline` to the exact period from `[TYPED FACT CATALOG]` (never attach a news date to a slide event).
     3. STRICT FIELD ISOLATION:
-       - `raw_materials_and_macro_sensitivities`: Up to 4 external macro, commodity, currency, interest-rate/NIM, or regulatory risk factors discussed in `[PRESENTATION]` or `[CONCALL]`.
-       - `explicitly_named_competitors`: Proper-noun rival companies named in `[PRESENTATION]` or `[CONCALL]` ONLY (never from `[NEWS]`, and never list the company's own brands/subsidiaries).
-       - `management_numerical_guidance`: Forward-looking numerical targets or margin/ROA/ROE/growth trajectory stated in `[PRESENTATION]` or `[CONCALL]` (if none are stated, write `"Not explicitly stated in filing."`).
+       - `raw_materials_and_macro_sensitivities`: Up to 4 external macro, commodity, currency, interest-rate, or regulatory risk factors discussed in `[PRESENTATION]` or `[CONCALL]`.
+       - `explicitly_named_competitors`: Proper-noun external rival companies named in `[PRESENTATION]` or `[CONCALL]` ONLY (never list internal subsidiaries/brands).
+       - `management_numerical_guidance`: Summarize `[GUIDANCE & OUTLOOK CATALOG]` items marked `modality=GUIDANCE` (never present `modality=HEDGED` statements as firm targets; if none exist, write `"Not explicitly stated in filing."`).
 
     Return ONLY a valid JSON object matching this exact structure:
     {{
       "core_business_model": "string",
-      "segment_facts": [{{"fact_id": "F001", "segment_name": "string", "financial_performance": "string", "reported_driver": "string"}}],
-      "key_catalysts_and_events": [{{"event_type": "CAPEX|PARTNERSHIP_JV|POLICY_REGULATION|PRICING_ACTION|ORDER_BOOK|OPERATIONAL_MILESTONE|RISK_FACTOR", "description": "string", "timeline": "string"}}],
+      "segment_facts": [{{"fact_id": "F001", "reported_driver": "string"}}],
+      "key_catalysts_and_events": [{{"news_id": "N01", "event_type": "CAPEX|PARTNERSHIP_JV|POLICY_REGULATION|PRICING_ACTION|ORDER_BOOK|OPERATIONAL_MILESTONE|RISK_FACTOR", "description": "string", "timeline": "string"}}],
       "raw_materials_and_macro_sensitivities": ["string"],
       "explicitly_named_competitors": ["string"],
       "management_numerical_guidance": "string",
@@ -118,23 +277,30 @@ prompts:
     [CONCALL]: {trans}
 
   judge_prompt: |
-    You are a Senior Financial Audit Judge evaluating an extracted JSON for {company_name} ({symbol}) against the `[TYPED FACT CATALOG]` and 4 source blocks.
+    You are a Senior Financial Audit Judge evaluating an extracted JSON for {company_name} ({symbol}) against the deterministic catalogs and source blocks.
 
-    [TYPED FACT CATALOG (GROUND-TRUTH DETERMINISTIC TABLE & CONCALL FACTS)]:
+    [TYPED FACT CATALOG (GROUND-TRUTH TABLE & CONCALL FACTS)]:
     {typed_fact_catalog}
 
+    [NEWS CATALOG (GROUND-TRUTH NEWS DATES & QUARTERS)]:
+    {news_catalog}
+
+    [GUIDANCE CATALOG]:
+    {guidance_catalog}
+
     CRITICAL JUDGE RULES:
-    1. VERIFY AGAINST `[TYPED FACT CATALOG]`: Any `segment_facts` entry whose metric, value, unit, and period match a row in `[TYPED FACT CATALOG]` is 100% faithful and MUST NOT be flagged as an error.
-    2. NEWS DIGEST IS DETERMINISTIC: `factual_news_digest` is copied verbatim by Python from `[NEWS]`. NEVER deduct points for `factual_news_digest`.
-    3. DO NOT PENALIZE EMPTY ARRAYS `[]`: Having `[]` for `explicitly_named_competitors` or `raw_materials_and_macro_sensitivities` is valid.
-    4. DEDUCT POINTS ONLY FOR GENUINE ERRORS:
-       - Numbers or claims in `[EXTRACTED JSON]` that contradict `[TYPED FACT CATALOG]` and do not exist in `[PRESENTATION]`, `[CONCALL]`, or `[NEWS]`.
-       - A timeline date that contradicts the source event date.
+    1. VERIFY AGAINST DETERMINISTIC CATALOGS:
+       - Any `segment_facts` entry bound to `[Fxxx]` and any event bound to `[Nxx]` has had its numbers, units, dates, and fiscal quarters deterministically verified by Python. NEVER flag bound `[Fxxx]` or `[Nxx]` values/dates as errors.
+    2. INDIAN FISCAL CALENDAR: April–June 2026 = Q1 FY27; July–September 2026 = Q2 FY27; October–December 2026 = Q3 FY27.
+    3. DO NOT PENALIZE OMISSIONS OR EMPTY ARRAYS `[]`: Selecting a subset of top news/catalysts or returning `[]` for competitors/sensitivities is 100% valid.
+    4. DEDUCT POINTS ONLY FOR GENUINE CONTRADICTIONS:
+       - A `reported_driver` that describes a completely different segment/metric than its bound `fact_id` (or calls a negative loss a profit).
+       - A slide event attributed to a wrong date.
 
     Scoring Scale:
-    5 = All segments and numbers align with `[TYPED FACT CATALOG]` or the 4 source blocks.
-    4 = 1 minor driver/timeline imprecision, all numbers and units accurate.
-    3 = 1-2 material numerical or attribution errors.
+    5 = All segments, drivers, and events align with the catalogs and source blocks.
+    4 = 1 minor driver/categorization imprecision, all numbers and dates accurate.
+    3 = 1-2 material driver or attribution errors.
     2 = Multiple material errors.
     1 = Severe fabrication.
 
