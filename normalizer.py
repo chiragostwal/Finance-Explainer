@@ -53,8 +53,9 @@ def classify_metric_label(row_label: str, slide_heading: str = "") -> str:
 # ==========================================================
 # 2. DETERMINISTIC INDIAN FISCAL CALENDAR & PERIOD NORMALIZER
 # ==========================================================
+# Uses \u20b9 for INR Rupee symbol and \u20ac for Euro symbol so Windows PowerShell never corrupts them into '?'
 UNIT_HEADER_PAT = re.compile(
-    r"\(\s*(₹\s*billion|₹\s*crore|₹\s*cr|rs\.?\s*crore|rs\.?\s*cr|inr\s*million|inr\s*cr|us\$\s*million|us\$\s*mn|us\$\s*billion|\$\s*mn|\$\s*bn|€\s*million|€\s*mn)\s*\)",
+    r"\(\s*(\u20b9\s*billion|\u20b9\s*crore|\u20b9\s*cr|rs\.?\s*crore|rs\.?\s*cr|inr\s*million|inr\s*cr|us\$\s*million|us\$\s*mn|us\$\s*billion|\$\s*mn|\$\s*bn|\u20ac\s*million|\u20ac\s*mn)\s*\)",
     re.I
 )
 
@@ -122,18 +123,18 @@ def detect_slide_unit_scope(slide_text: str) -> str:
     if not m:
         return ""
     raw = m.group(1).lower().replace(" ", "")
-    if "billion" in raw and ("₹" in raw or "rs" in raw or "inr" in raw):
-        return "₹ bn"
+    if "billion" in raw and ("\u20b9" in raw or "rs" in raw or "inr" in raw):
+        return "\u20b9 bn"
     if "crore" in raw or "cr" in raw:
-        return "₹ Cr"
+        return "\u20b9 Cr"
     if "inrmillion" in raw:
-        return "₹ Mn"
+        return "\u20b9 Mn"
     if "us$million" in raw or "$mn" in raw:
         return "US$ Mn"
     if "us$billion" in raw or "$bn" in raw:
         return "US$ Bn"
-    if "€" in raw:
-        return "€ Mn"
+    if "\u20ac" in raw:
+        return "\u20ac Mn"
     return m.group(1).strip()
 
 
@@ -232,24 +233,55 @@ HEDGED_MODALITY_PAT = re.compile(
 
 
 def extract_guidance_catalog(pres_text: str, trans_text: str, doc_period: str = "Q2 FY27") -> List[Dict[str, str]]:
+    """Extracts full-context management guidance & forward outlook [G01..G06], preserving multi-line context."""
     guidance_items: List[Dict[str, str]] = []
     seen = set()
 
-    for src_label, text in [("pres", pres_text or ""), ("concall", trans_text or "")]:
-        for raw_sent in re.split(r"(?<=[\.\!])\s+|\n+", text):
-            sent = re.sub(r"\s*\|\s*", " ", raw_sent)
-            sent = re.sub(r"\s+", " ", sent).strip(" -•|")
-            if len(sent) < 28 or len(sent) > 260:
+    metric_anchor_pat = re.compile(
+        r"\b(revenue|margin|ebitda|pat|roe|roa|roce|aum|nim|credit cost|credit growth|loan|capex|order|"
+        r"volume|export|demand|realization|utilization|fy27|fy28|h2|q3|q4|full year|long term|medium term)\b",
+        re.I
+    )
+
+    for src_label, text in [("concall", trans_text or ""), ("pres", pres_text or "")]:
+        clean_block = re.sub(r"\s*\|\s*", " ", text)
+        clean_block = clean_block.replace("\r\n", "\n").replace("\r", "\n")
+        clean_block = re.sub(r"(?<!\n)\n(?!\n)", " ", clean_block)
+        clean_block = re.sub(r"\b(Rs|Cr|Mr|Dr|Ms|St|vs|approx)\.\s+", r"\1_DOT_ ", clean_block, flags=re.I)
+
+        raw_sents = re.split(r"(?<=[\.\!])\s+(?=[A-Z0-9])|\n{2,}", clean_block)
+        restored_sents = [s.replace("_DOT_ ", ". ").strip(" -*|") for s in raw_sents if s.strip()]
+
+        for idx, sent in enumerate(restored_sents):
+            sent = re.sub(r"\s+", " ", sent).strip()
+            if len(sent) < 20 or len(sent) > 340:
                 continue
             if ANALYST_QUESTION_PAT.search(sent):
                 continue
             if not GUIDANCE_SIGNAL_PAT.search(sent):
                 continue
-            if not re.search(r"\b\d+(\.\d+)?%|\b\d+\s*bps|₹|\$|crore|bn|gw\b", sent, re.I) and "guidance" not in sent.lower():
+
+            if len(sent) < 65 and idx > 0 and not ANALYST_QUESTION_PAT.search(restored_sents[idx - 1]):
+                prev_s = re.sub(r"\s+", " ", restored_sents[idx - 1]).strip()
+                if 20 <= len(prev_s) <= 220:
+                    sent = f"{prev_s} {sent}"
+
+            if len(sent) < 42 or not metric_anchor_pat.search(sent):
                 continue
 
-            modality = "HEDGED" if HEDGED_MODALITY_PAT.search(sent) else "GUIDANCE"
-            stem = re.sub(r"\W+", " ", sent.lower())[:50]
+            has_num = bool(re.search(r"\b\d+(\.\d+)?%|\b\d+\s*bps|\u20b9|\$|crore|cr\b|bn\b|gw\b", sent, re.I))
+            has_strong_kw = bool(re.search(r"\b(guidance|outlook|target|expect|trajectory|going forward|h2|q3|q4|fy27)\b", sent, re.I))
+            if not has_num and not has_strong_kw:
+                continue
+
+            if HEDGED_MODALITY_PAT.search(sent):
+                modality = "HEDGED"
+            elif has_num:
+                modality = "GUIDANCE"
+            else:
+                modality = "QUALITATIVE_OUTLOOK"
+
+            stem = re.sub(r"\W+", " ", sent.lower())[:55]
             if stem in seen:
                 continue
             seen.add(stem)
@@ -258,7 +290,7 @@ def extract_guidance_catalog(pres_text: str, trans_text: str, doc_period: str = 
                 "id": gid,
                 "period": doc_period,
                 "modality": modality,
-                "text": sent,
+                "text": sent[:320],
                 "src": src_label
             })
             if len(guidance_items) >= 6:
@@ -290,8 +322,8 @@ TABLE_ROW_PAT = re.compile(
 
 ATOMIC_FACT_CLAUSE_PAT = re.compile(
     r"^([A-Z][A-Za-z0-9\s\-\(\),/]{2,65}?)\s+"
-    r"(?:grew by|increased by|rose by|rose|was|were|stood at)\s+"
-    r"(.{3,130}?(?:₹\s*[\d,]+(?:\.\d+)?\s*(?:lakh\s+crore|crore|cr|bn|billion)|[\d\.]+%)(?:\s+in\s+[A-Za-z0-9\-]+)?)",
+    r"(?:grew by|increased by|rose by|rose|was|were|stood at|delivered|clocked|reported|crossed|touched|jumped|registered|approached)\s+"
+    r"(.{3,140}?(?:(?:\u20b9|rs\.?|inr)\s*[\d,]+(?:\.\d+)?\s*(?:lakh\s+crore|crore|cr|bn|billion)|[\d,]+\s*(?:lakh\s+units|units)|[\d\.]+%)(?:\s+in\s+[A-Za-z0-9\-]+)?)",
     re.I
 )
 
@@ -303,13 +335,15 @@ BAD_SUBJECT_PREFIX = re.compile(
 
 
 def split_into_atomic_clauses(text: str) -> List[str]:
-    norm = re.sub(r"\s*\|\s*•\s*|\s*•\s*|\s+-\s*\|\s*", "\n", text)
+    text = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"(?<!\n)\n(?!\n)", " ", text)
+    norm = re.sub(r"\s*\|\s*\u2022\s*|\s*\u2022\s*|\s+-\s*\|\s*", "\n", text)
     norm = re.sub(r"(?:^|\s+)\d{1,2}\.\s+", "\n", norm)
     norm = re.sub(r"\.\s+(?=[A-Z])", "\n", norm)
     clauses = []
     for raw_line in norm.splitlines():
         clean_line = re.sub(r"\s*\|\s*", " ", raw_line)
-        clean_line = re.sub(r"\s+", " ", clean_line).strip(" -•|.")
+        clean_line = re.sub(r"\s+", " ", clean_line).strip(" -\u2022|.")
         if len(clean_line) >= 15 and not ANALYST_QUESTION_PAT.search(clean_line):
             clauses.append(clean_line)
     return clauses
@@ -329,9 +363,8 @@ def extract_typed_facts_from_Sources(
 
     def add_fact(period: str, scope: str, metric: str, value: str, change: str, src: str):
         period_clean = canonicalize_period_token(period)
-        scope_clean = re.sub(r"\s+", " ", scope).strip(" -•|:,")
-        val_clean = re.sub(r"\s+", " ", value).strip(" -•|:,")
-        # Require at least one digit inside value and reject dangling 'to' or 'Cr.' without digits
+        scope_clean = re.sub(r"\s+", " ", scope).strip(" -\u2022|:,")
+        val_clean = re.sub(r"\s+", " ", value).strip(" -\u2022|:,")
         if not re.search(r"\d", val_clean) or val_clean.endswith((" to", " by", " at", " of")):
             return
         if not scope_clean or len(scope_clean) < 2 or scope_clean.lower() in ("and", "of", "the", "growth"):
@@ -361,7 +394,7 @@ def extract_typed_facts_from_Sources(
         ("Net_Profit_PAT_Cr", "Profit After Tax (PAT)")
     ]:
         if k in xbrl_dict:
-            add_fact(p_end, "Consolidated", label, f"₹{xbrl_dict[k]} Cr", "XBRL Reported", "xbrl")
+            add_fact(p_end, "Consolidated", label, f"\u20b9{xbrl_dict[k]} Cr", "XBRL Reported", "xbrl")
 
     # 2. Slide Table & Bullet Facts
     slide_chunks = re.split(r"(?=\[Slide \d+\])", pres_text or "")
@@ -383,7 +416,7 @@ def extract_typed_facts_from_Sources(
             row_matches = list(TABLE_ROW_PAT.finditer(line))
             if row_matches:
                 for m_row in row_matches:
-                    row_label = re.sub(r"^\d{4}\s*\|\s*", "", m_row.group(1)).strip(" -•|")
+                    row_label = re.sub(r"^\d{4}\s*\|\s*", "", m_row.group(1)).strip(" -\u2022|")
                     if row_label.lower().startswith(("sep ", "jun ", "q1", "q2", "% share", "total capital")):
                         continue
                     v1, v2, v3 = m_row.group(2), m_row.group(3), m_row.group(4)
@@ -396,10 +429,10 @@ def extract_typed_facts_from_Sources(
                     val_str = f"{latest_val}{unit_suffix}".strip()
                     if is_negative:
                         val_str = f"Negative / Loss {val_str}"
-                    elif unit_scope == "₹ bn" and latest_val:
+                    elif unit_scope == "\u20b9 bn" and latest_val:
                         try:
                             cr_val = round(float(latest_val.replace(",", "")) * 100, 1)
-                            val_str = f"₹{latest_val} bn (₹{cr_val:,.1f} Cr)"
+                            val_str = f"\u20b9{latest_val} bn (\u20b9{cr_val:,.1f} Cr)"
                         except ValueError:
                             pass
 
@@ -418,7 +451,7 @@ def extract_typed_facts_from_Sources(
         for clause in split_into_atomic_clauses("\n".join(lines[1:])):
             m_cl = ATOMIC_FACT_CLAUSE_PAT.match(clause)
             if m_cl:
-                subj = m_cl.group(1).strip(" -•0123456789.,")
+                subj = m_cl.group(1).strip(" -\u20220123456789.,")
                 if BAD_SUBJECT_PREFIX.search(subj):
                     continue
                 rest = clause[m_cl.start(2):].strip()
@@ -434,7 +467,7 @@ def extract_typed_facts_from_Sources(
         m_cl = ATOMIC_FACT_CLAUSE_PAT.match(clause)
         if not m_cl:
             continue
-        subj = m_cl.group(1).strip(" -•0123456789.,")
+        subj = m_cl.group(1).strip(" -\u20220123456789.,")
         if BAD_SUBJECT_PREFIX.search(subj) or len(subj) < 3:
             continue
         rest = clause[m_cl.start(2):].strip()
